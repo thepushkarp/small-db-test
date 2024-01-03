@@ -26,4 +26,4 @@ ALTER TABLE public.books OWNER TO postgres;
 
 -- Insert sample data
 INSERT INTO public.books (title, author) VALUES ('1984', 'George Orwell');
-INSERT INTO public.books (title, author) VALUES ('To Kill a Mockingbird', 'Harper
+INSERT INTO public.books (title, author) VALUES ('To Kill a Mockingbird', 'Harper Lee');

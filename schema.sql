@@ -13,8 +13,7 @@ SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
-
--- SQLite schema for simplified book application
+-- PostgreSQL schema for simplified book application
 
 -- Create a 'books' table with auto-incrementing id
 CREATE TABLE public.books (
@@ -23,9 +22,8 @@ CREATE TABLE public.books (
     author VARCHAR NOT NULL
 );
 
-
 ALTER TABLE public.books OWNER TO postgres;
 
 -- Insert sample data
 INSERT INTO public.books (title, author) VALUES ('1984', 'George Orwell');
-INSERT INTO public.books (title, author) VALUES ('To Kill a Mockingbird', 'Harper Lee');
+INSERT INTO public.books (title, author) VALUES ('To Kill a Mockingbird', 'Harper

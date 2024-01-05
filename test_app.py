@@ -1,34 +1,47 @@
-
 import unittest
-from app import Book, add_book, get_books, engine, Base, Session
+from unittest.mock import Mock, patch
 
-class TestBookApp(unittest.TestCase):
+from sqlalchemy.exc import SQLAlchemyError
 
-    @classmethod
-    def setUpClass(cls):
-        # Create an in-memory database for testing
-        cls.engine = engine
-        Base.metadata.create_all(cls.engine)
-        cls.session = Session()
+from app import Book, add_book, create_db_engine, get_books
 
-    @classmethod
-    def tearDownClass(cls):
-        # Clean up the database
-        Base.metadata.drop_all(cls.engine)
+
+class TestApp(unittest.TestCase):
+    def setUp(self):
+        self.mock_session = Mock()
+        self.mock_engine = Mock()
+
+    @patch("app.create_engine")
+    def test_create_db_engine(self, mock_create_engine):
+        mock_create_engine.return_value = self.mock_engine
+        result = create_db_engine()
+        self.assertEqual(result, self.mock_engine)
 
     def test_add_book(self):
-        # Test adding a book
-        add_book('Test Book', 'Test Author')
-        result = self.session.query(Book).filter_by(title='Test Book').first()
-        self.assertIsNotNone(result)
-        self.assertEqual(result.author, 'Test Author')
+        self.mock_session.add = Mock()
+        self.mock_session.commit = Mock()
+        book = add_book(self.mock_session, "Test Title", "Test Author")
+        self.assertIsInstance(book, Book)
+        self.assertEqual(book.title, "Test Title")
+        self.assertEqual(book.author, "Test Author")
+
+    def test_add_book_exception(self):
+        self.mock_session.add = Mock()
+        self.mock_session.commit = Mock(side_effect=SQLAlchemyError)
+        book = add_book(self.mock_session, "Test Title", "Test Author")
+        self.assertIsNone(book)
 
     def test_get_books(self):
-        # Test retrieving books
-        self.session.add(Book(title='Another Test Book', author='Another Author'))
-        self.session.commit()
-        result = get_books()
-        self.assertEqual(len(result), 2)  # Including the book added in test_add_book
+        mock_book = Mock()
+        self.mock_session.query.return_value.all.return_value = [mock_book]
+        books = get_books(self.mock_session)
+        self.assertEqual(books, [mock_book])
 
-if __name__ == '__main__':
+    def test_get_books_exception(self):
+        self.mock_session.query.return_value.all.side_effect = SQLAlchemyError
+        books = get_books(self.mock_session)
+        self.assertEqual(books, [])
+
+
+if __name__ == "__main__":
     unittest.main()

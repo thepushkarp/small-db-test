@@ -4,14 +4,15 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pymongo import MongoClient
+from typing import List, Optional
+from pymongo.errors import PyMongoError
 
-# Replace 'username', 'password', 'host', and 'dbname' with your PostgreSQL credentials
 DATABASE_URI = "postgresql://username:password@host/dbname"
 
 Base = declarative_base()
 
 
-# Simplified Book Model
 class Book(Base):
     __tablename__ = "books"
     id = Column(Integer, primary_key=True)
@@ -20,39 +21,34 @@ class Book(Base):
 
 
 def create_db_engine():
-    return create_engine(DATABASE_URI, echo=True)
+    return MongoClient(DATABASE_URI)
 
 # Function: Add a Book
-def add_book(session, title: str, author: str) -> Optional[Book]:
+def add_book(collection, title: str, author: str) -> Optional[dict]:
     try:
-        new_book = Book(title=title, author=author)
-        session.add(new_book)
-        session.commit()
+        new_book = {'title': title, 'author': author}
+        collection.insert_one(new_book)
         return new_book
-    except SQLAlchemyError as e:
-        session.rollback()
+    except Exception as e:
         print(f"Error: {e}")
         return None
 
 
-# Function: Get all Books
-def get_books(session) -> list[Book]:
+
+def get_books(collection) -> List[Optional[dict]]:
     try:
-        books = session.query(Book).all()
+        books = list(collection.find())
         return books
-    except SQLAlchemyError as e:
+    except PyMongoError as e:
         print(f"Error: {e}")
         return []
 
 
-# Demo Execution
 if __name__ == "__main__":
     engine = create_db_engine()
 
-    # Create tables
     Base.metadata.create_all(engine)
 
-    # Session Setup
     Session = sessionmaker(bind=engine)
     session = Session()
 

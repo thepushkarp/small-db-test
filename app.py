@@ -4,14 +4,47 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pymongo import MongoClient
+from typing import Optional, List
+from bson.objectid import ObjectId
+from pymongo.collection import Collection
 
-# Replace 'username', 'password', 'host', and 'dbname' with your PostgreSQL credentials
+# Replace this with your actual MongoDB connection string
+DATABASE_URI = "mongodb://localhost:27017/"
+DATABASE_NAME = "library"  # Replace with your database name
+
+
+# Function: Get all Books
+def get_books(collection: Collection) -> List[dict]:
+    try:
+        # Find all documents in the collection without any filter (empty query)
+        books_cursor = collection.find({})
+        
+        # Convert the cursor to a list of dictionaries (representing books)
+        books = list(books_cursor)
+        
+        # Return the list of books
+        return books
+    except Exception as e:  # Catch a more general exception since we're not using SQLAlchemy
+        print(f"Error: {e}")
+        return []
+
+
+def add_book(collection: Collection, title: str, author: str) -> Optional[dict]:
+    try:
+        new_book_id = collection.insert_one({'title': title, 'author': author}).inserted_id
+        new_book = collection.find_one({'_id': new_book_id})
+        return new_book
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+COLLECTION_NAME = "books"  # Replace with your collection name
+
 DATABASE_URI = "postgresql://username:password@host/dbname"
 
 Base = declarative_base()
 
 
-# Simplified Book Model
 class Book(Base):
     __tablename__ = "books"
     id = Column(Integer, primary_key=True)
@@ -20,39 +53,16 @@ class Book(Base):
 
 
 def create_db_engine():
-    return create_engine(DATABASE_URI, echo=True)
-
-# Function: Add a Book
-def add_book(session, title: str, author: str) -> Optional[Book]:
-    try:
-        new_book = Book(title=title, author=author)
-        session.add(new_book)
-        session.commit()
-        return new_book
-    except SQLAlchemyError as e:
-        session.rollback()
-        print(f"Error: {e}")
-        return None
+    client = MongoClient(DATABASE_URI)
+    db = client[DATABASE_NAME]
+    return db
 
 
-# Function: Get all Books
-def get_books(session) -> list[Book]:
-    try:
-        books = session.query(Book).all()
-        return books
-    except SQLAlchemyError as e:
-        print(f"Error: {e}")
-        return []
-
-
-# Demo Execution
 if __name__ == "__main__":
     engine = create_db_engine()
 
-    # Create tables
     Base.metadata.create_all(engine)
 
-    # Session Setup
     Session = sessionmaker(bind=engine)
     session = Session()
 

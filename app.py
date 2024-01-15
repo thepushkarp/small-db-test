@@ -4,14 +4,13 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pymongo import MongoClient
 
-# Replace 'username', 'password', 'host', and 'dbname' with your PostgreSQL credentials
 DATABASE_URI = "postgresql://username:password@host/dbname"
 
 Base = declarative_base()
 
 
-# Simplified Book Model
 class Book(Base):
     __tablename__ = "books"
     id = Column(Integer, primary_key=True)
@@ -20,39 +19,42 @@ class Book(Base):
 
 
 def create_db_engine():
-    return create_engine(DATABASE_URI, echo=True)
+    client = MongoClient(DATABASE_URI)
+    return client.get_database()
 
-# Function: Add a Book
-def add_book(session, title: str, author: str) -> Optional[Book]:
+def add_book(client: MongoClient, title: str, author: str) -> Optional[dict]:
     try:
-        new_book = Book(title=title, author=author)
-        session.add(new_book)
-        session.commit()
+        books_collection = client['library']['books']
+        result = books_collection.insert_one({
+            "title": title,
+            "author": author
+        })
+        new_book = {
+            "_id": result.inserted_id,
+            "title": title,
+            "author": author
+        }
         return new_book
-    except SQLAlchemyError as e:
-        session.rollback()
+    except Exception as e:
         print(f"Error: {e}")
         return None
 
-
-# Function: Get all Books
-def get_books(session) -> list[Book]:
+def get_books(client: MongoClient) -> list[Book]:
     try:
-        books = session.query(Book).all()
+        books_collection = client.db.books  # Assume 'db' is the database name and 'books' is the collection name
+        books_cursor = books_collection.find({})
+        books = [Book(**book) for book in books_cursor]
         return books
-    except SQLAlchemyError as e:
+    except Exception as e:
         print(f"Error: {e}")
         return []
 
 
-# Demo Execution
 if __name__ == "__main__":
     engine = create_db_engine()
 
-    # Create tables
     Base.metadata.create_all(engine)
 
-    # Session Setup
     Session = sessionmaker(bind=engine)
     session = Session()
 

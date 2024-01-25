@@ -4,14 +4,23 @@ from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from pymongo import MongoClient
+from pymongo.collection import Collection
+from pymongo.errors import PyMongoError
 
-# Replace 'username', 'password', 'host', and 'dbname' with your PostgreSQL credentials
 DATABASE_URI = "postgresql://username:password@host/dbname"
 
 Base = declarative_base()
 
+def get_books(collection: Collection) -> list:
+    try:
+        books_cursor = collection.find({})
+        return list(books_cursor)
+    except PyMongoError as e:
+        print(f"Error: {e}")
+        return []
 
-# Simplified Book Model
+
 class Book(Base):
     __tablename__ = "books"
     id = Column(Integer, primary_key=True)
@@ -20,39 +29,27 @@ class Book(Base):
 
 
 def create_db_engine():
-    return create_engine(DATABASE_URI, echo=True)
+    client = MongoClient(DATABASE_URI)
+    return client.get_database()
+
 
 # Function: Add a Book
-def add_book(session, title: str, author: str) -> Optional[Book]:
+def add_book(collection: Collection, title: str, author: str) -> Optional[dict]:
     try:
-        new_book = Book(title=title, author=author)
-        session.add(new_book)
-        session.commit()
+        new_book = {"title": title, "author": author}
+        result = collection.insert_one(new_book)
+        new_book["_id"] = result.inserted_id  # Include the new id in the returned document
         return new_book
-    except SQLAlchemyError as e:
-        session.rollback()
+    except PyMongoError as e:
         print(f"Error: {e}")
         return None
 
 
-# Function: Get all Books
-def get_books(session) -> list[Book]:
-    try:
-        books = session.query(Book).all()
-        return books
-    except SQLAlchemyError as e:
-        print(f"Error: {e}")
-        return []
-
-
-# Demo Execution
 if __name__ == "__main__":
     engine = create_db_engine()
 
-    # Create tables
     Base.metadata.create_all(engine)
 
-    # Session Setup
     Session = sessionmaker(bind=engine)
     session = Session()
 
